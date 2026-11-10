@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CardMitra | Game Manager</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#07150f;color:#fff;font-family:Arial,sans-serif}
+header{background:#0d261b;padding:20px;border-bottom:1px solid #b99a45;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{font-size:25px;font-weight:bold;color:#e5c36b}
+.logo span{color:white}
+.container{max-width:1200px;margin:auto;padding:20px}
+h2{margin:20px 0 12px;color:#e5c36b}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+.card{background:#11271d;border:1px solid #284536;border-radius:12px;padding:18px;margin-bottom:14px}
+.stat{font-size:28px;font-weight:bold;margin-top:10px;color:#e5c36b}
+input,select{background:#091a12;color:white;border:1px solid #45614e;padding:12px;border-radius:7px;width:100%;margin:5px 0}
+button{background:#d5ad50;color:#111;border:0;border-radius:7px;padding:11px 15px;font-weight:bold;cursor:pointer;margin:4px}
+button:hover{background:#f0d17d}
+.secondary{background:#294536;color:white}
+.danger{background:#a83b36;color:white}
+.success{color:#70d99b}
+table{width:100%;border-collapse:collapse;min-width:650px}
+th,td{padding:13px;text-align:left;border-bottom:1px solid #294536}
+th{color:#e5c36b}
+.table-wrap{overflow-x:auto}
+.actions{display:flex;flex-wrap:wrap;gap:3px}
+.status{color:#e5c36b;font-weight:bold}
+.hidden{display:none}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}
+.tabs button{background:#193728;color:white}
+.tabs button.active{background:#d5ad50;color:#111}
+.bigpot{font-size:38px;color:#e5c36b;font-weight:bold}
+.history{padding:10px;border-bottom:1px solid #294536;color:#ccc}
+small{color:#a9c0ae}
+@media(max-width:600px){.container{padding:12px}header{padding:15px}.stat{font-size:24px}.card{padding:14px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">♠ Card<span>Mitra</span></div>
+  <div id="gameStatus" class="status">NO ACTIVE GAME</div>
+</header>
+
+<div class="container">
+
+<div class="grid">
+  <div class="card">
+    <small>TOTAL GAMES</small>
+    <div class="stat" id="totalGames">0</div>
+  </div>
+  <div class="card">
+    <small>ACTIVE PLAYERS</small>
+    <div class="stat" id="totalPlayers">0</div>
+  </div>
+  <div class="card">
+    <small>CURRENT POT</small>
+    <div class="stat" id="pot">₹0</div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="active" onclick="showTab('dashboard',this)">Dashboard</button>
+  <button onclick="showTab('game',this)">Live Game</button>
+  <button onclick="showTab('settlement',this)">Settlement</button>
+  <button onclick="showTab('history',this)">History</button>
+</div>
+
+<section id="dashboard">
+  <div class="card">
+    <h2>Create New Game</h2>
+    <input id="gameName" placeholder="Enter game name">
+    <input id="boot" type="number" min="0" placeholder="Boot amount ₹">
+    <button onclick="startGame()">+ Start New Game</button>
+  </div>
+  <div class="card">
+    <h2>Quick Guide</h2>
+    <p>Add players → Start game → Record bets → Pack players → Declare winner → Calculate settlement.</p>
+  </div>
+</section>
+
+<section id="game" class="hidden">
+  <div class="card">
+    <h2 id="activeGameName">Live Game</h2>
+    <small>CURRENT TOTAL POT</small>
+    <div class="bigpot" id="livePot">₹0</div>
+    <p id="liveStatus">No game started</p>
+  </div>
+
+  <div class="card">
+    <h2>Add Player</h2>
+    <input id="playerName" placeholder="Player name">
+    <button onclick="addPlayer()">+ Add Player</button>
+  </div>
+
+  <div class="card">
+    <h2>Player Management</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Player</th><th>Mode</th><th>Status</th><th>Contribution</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="playersTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Record Betting</h2>
+    <select id="betPlayer"></select>
+    <select id="betMode">
+      <option value="BLIND">Blind</option>
+      <option value="SEEN">Seen</option>
+    </select>
+    <input id="betAmount" type="number" min="1" placeholder="Bet amount ₹">
+    <button onclick="placeBet()">Record Bet</button>
+  </div>
+
+  <div class="card">
+    <h2>Recent Activity</h2>
+    <div id="activity"></div>
+  </div>
+</section>
+
+<section id="settlement" class="hidden">
+  <div class="card">
+    <h2>Declare Winner</h2>
+    <select id="winnerSelect"></select>
+    <button onclick="declareWinner()">Declare Winner & Calculate</button>
+  </div>
+  <div class="card">
+    <h2>Profit / Loss Report</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Player</th><th>Contribution</th><th>Profit / Loss</th></tr></thead>
+        <tbody id="settlementTable"></tbody>
+      </table>
+    </div>
+    <h2>Payment Settlement</h2>
+    <div id="payments"></div>
+  </div>
+</section>
+
+<section id="history" class="hidden">
+  <div class="card">
+    <h2>Game History</h2>
+    <div id="historyList">No completed games yet.</div>
+  </div>
+</section>
+</div>
+
+<script>
+const KEY = "cardmitra_demo_v1";
+
+let state = JSON.parse(localStorage.getItem(KEY)) || {
+  games: [],
+  current: null
+};
+
+function save(){
+  localStorage.setItem(KEY, JSON.stringify(state));
+  render();
+}
+
+function money(paise){
+  return "₹" + (paise / 100).toLocaleString("en-IN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  });
+}
+
+function rupeesToPaise(value){
+  const n = Number(value);
+  if(!Number.isFinite(n) || n <= 0) return 0;
+  return Math.round(n * 100);
+}
+
+function showTab(id, btn){
+  document.querySelectorAll("section").forEach(s => s.classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  render();
+}
+
+function startGame(){
+  if(state.current && !state.current.finished){
+    return alert("Finish the current game first.");
+  }
+
+  const name = document.getElementById("gameName").value.trim();
+  const boot = Math.round(Number(document.getElementById("boot").value) * 100);
+
+  if(!name || !Number.isSafeInteger(boot) || boot < 0){
+    return alert("Enter a valid game name and boot amount.");
+  }
+
+  const game = {
+    id: Date.now(),
+    name,
+    boot,
+    players: [],
+    activity: [],
+    finished: false,
+    winner: null,
+    created: new Date().toLocaleString("en-IN"),
+    payments: []
+  };
+
+  state.games.push(game);
+  state.current = game;
+  document.getElementById("gameName").value = "";
+  document.getElementById("boot").value = "";
+  showTab("game", document.querySelectorAll(".tabs button")[1]);
+  log("Game created: " + name);
+  save();
+}
+
+function log(message){
+  if(!state.current) return;
+  state.current.activity.unshift({
+    message,
+    time: new Date().toLocaleTimeString()
+  });
+}
+
+function addPlayer(){
+  const g = state.current;
+  if(!g || g.finished) return alert("Start an active game first.");
+
+  const name = document.getElementById("playerName").value.trim();
+  if(!name) return alert("Enter player name.");
+
+  if(g.players.some(p => p.name.toLowerCase() === name.toLowerCase())){
+    return alert("Player already exists.");
+  }
+
+  g.players.push({
+    id: Date.now() + Math.random(),
+    name,
+    mode: "BLIND",
+    status: "ACTIVE",
+    contribution: g.boot,
+    turns: 0
+  });
+
+  log(name + " joined. Boot: " + money(g.boot));
+  document.getElementById("playerName").value = "";
+  save();
+}
+
+function placeBet(){
+  const g = state.current;
+  if(!g || g.finished) return alert("No active game.");
+
+  const p = g.players.find(x => String(x.id) === document.getElementById("betPlayer").value);
+  const amount = rupeesToPaise(document.getElementById("betAmount").value);
+  const mode = document.getElementById("betMode").value;
+
+  if(!p || p.status !== "ACTIVE") return alert("Select an active player.");
+  if(!amount) return alert("Enter a valid positive bet.");
+
+  p.mode = mode;
+  p.contribution += amount;
+  p.turns++;
+
+  log(p.name + " bet " + money(amount) + " (" + mode + ")");
+  document.getElementById("betAmount").value = "";
+  save();
+}
+
+function changeMode(id, mode){
+  const p = state.current?.players.find(x => String(x.id) === id);
+  if(!p || p.status !== "ACTIVE" || state.current.finished) return;
+  p.mode = mode;
+  log(p.name + " changed to " + mode);
+  save();
+}
+
+function packPlayer(id){
+  const g = state.current;
+  const p = g?.players.find(x => String(x.id) === id);
+  if(!p || p.status !== "ACTIVE" || g.finished) return;
+  if(!confirm("Pack " + p.name + "?")) return;
+  p.status = "PACKED";
+  log(p.name + " packed.");
+  save();
+}
+
+function getPot(g){
+  return g.players.reduce((sum,p) => sum + p.contribution, 0);
+}
+
+function declareWinner(){
+  const g = state.current;
+  if(!g || g.finished) return alert("No active game.");
+  const active = g.players.filter(p => p.status === "ACTIVE");
+  const winner = g.players.find(p => String(p.id) === document.getElementById("winnerSelect").value);
+
+  if(!winner || active.length < 1 || winner.status !== "ACTIVE"){
+    return alert("Select an eligible active winner.");
+  }
+
+  if(!confirm("Declare " + winner.name + " as winner?")) return;
+
+  const pot = getPot(g);
+  const losers = g.players.filter(p => p.id !== winner.id);
+  let remaining = pot - winner.contribution;
+
+  // All loser contributions are paid to the winner.
+  const payments = losers
+    .filter(p => p.contribution > 0)
+    .map(p => ({
+      payer: p.name,
+      receiver: winner.name,
+      amount: p.contribution,
+      paid: false
+    }));
+
+  // Profit/loss is calculated in paise.
+  const results = g.players.map(p => ({
+    name: p.name,
+    contribution: p.contribution,
+    net: p.id === winner.id ? remaining : -p.contribution
+  }));
+
+  if(results.reduce((sum,r) => sum + r.net, 0) !== 0){
+    return alert("Settlement balance error.");
+  }
+
+  g.finished = true;
+  g.winner = winner.name;
+  g.results = results;
+  g.payments = payments;
+  g.totalPot = pot;
+  g.finishedAt = new Date().toLocaleString("en-IN");
+
+  log("Winner declared: " + winner.name);
+  save();
+}
+
+function markPaid(index){
+  const g = state.current;
+  const payment = g?.payments[index];
+  if(!g || !g.finished || !payment || payment.paid) return;
+  payment.paid = true;
+  log(payment.payer + " paid " + money(payment.amount) + " to " + payment.receiver);
+  save();
+}
+
+function render(){
+  const g = state.current;
+  const allGames = state.games;
+
+  document.getElementById("totalGames").textContent = allGames.length;
+  document.getElementById("totalPlayers").textContent = g ? g.players.filter(p => p.status === "ACTIVE").length : 0;
+
+  const pot = g ? getPot(g) : 0;
+  document.getElementById("pot").textContent = money(pot);
+  document.getElementById("livePot").textContent = money(pot);
+
+  document.getElementById("gameStatus").textContent =
+    !g ? "NO ACTIVE GAME" : g.finished ? "GAME COMPLETED" : "LIVE GAME";
+
+  document.getElementById("activeGameName").textContent = g ? g.name : "Live Game";
+  document.getElementById("liveStatus").textContent = g ? (g.finished ? "Winner: " + g.winner : "Game in progress") : "No game started";
+
+  const table = document.getElementById("playersTable");
+  table.innerHTML = "";
+  const betSelect = document.getElementById("betPlayer");
+  const winnerSelect = document.getElementById("winnerSelect");
+  betSelect.innerHTML = "";
+  winnerSelect.innerHTML = "";
+
+  if(g){
+    g.players.forEach(p => {
+      const row = document.createElement("tr");
+      const td = (value) => {
+        const cell = document.createElement("td");
+        cell.textContent = value;
+        return cell;
+      };
+
+      row.append(td(p.name), td(p.mode), td(p.status), td(money(p.contribution)));
+
+      const actions = document.createElement("td");
+      const wrap = document.createElement("div");
+      wrap.className = "actions";
+
+      if(!g.finished && p.status === "ACTIVE"){
+        ["BLIND","SEEN"].forEach(mode => {
+          const b = document.createElement("button");
+          b.className = "secondary";
+          b.textContent = mode;
+          b.onclick = () => changeMode(String(p.id), mode);
+          wrap.append(b);
+        });
+
+        const pack = document.createElement("button");
+        pack.className = "danger";
+        pack.textContent = "PACK";
+        pack.onclick = () => packPlayer(String(p.id));
+        wrap.append(pack);
+      }
+      actions.append(wrap);
+      row.append(actions);
+      table.append(row);
+
+      if(!g.finished && p.status === "ACTIVE"){
+        const option = new Option(p.name, p.id);
+        betSelect.add(option);
+        winnerSelect.add(new Option(p.name, p.id));
+      }
+    });
+  }
+
+  document.getElementById("activity").innerHTML = g && g.activity.length
+    ? g.activity.map(a => `<div class="history">${escapeHTML(a.time)} — ${escapeHTML(a.message)}</div>`).join("")
+    : "No activity yet.";
+
+  document.getElementById("settlementTable").innerHTML =
+    g?.results ? g.results.map(r =>
+      `<tr><td>${escapeHTML(r.name)}</td><td>${money(r.contribution)}</td><td class="${r.net >= 0 ? "success" : ""}">${money(r.net)}</td></tr>`
+    ).join("") : "<tr><td colspan='3'>Declare a winner to calculate settlement.</td></tr>";
+
+  document.getElementById("payments").innerHTML =
+    g?.payments?.length ? g.payments.map((p,i) =>
+      `<div class="history">${escapeHTML(p.payer)} pays ${escapeHTML(p.receiver)}: <b>${money(p.amount)}</b> — ${p.paid ? "PAID" : "PENDING"} ${!p.paid ? `<button onclick="markPaid(${i})">Mark Paid</button>` : ""}</div>`
+    ).join("") : "No settlement payments yet.";
+
+  document.getElementById("historyList").innerHTML = allGames.length
+    ? [...allGames].reverse().map(x =>
+      `<div class="history"><b>${escapeHTML(x.name)}</b><br>Created: ${escapeHTML(x.created)}<br>Status: ${x.finished ? "Completed" : "Active"}<br>Pot: ${money(x.finished ? x.totalPot : getPot(x))}<br>Winner: ${escapeHTML(x.winner || "Not declared")}</div>`
+    ).join("")
+    : "No games yet.";
+}
+
+function escapeHTML(value){
+  return String(value).replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  })[c]);
+}
+
+render();
+</script>
+</body>
+</html>
